@@ -1,0 +1,19 @@
+{
+  "name": "notificaciones-lambda",
+  "version": "1.0.0",
+  "description": "Aplicación serverless (Lambdas) de notificaciones - consume RabbitMQ y expone funciones HTTP",
+  "main": "handler.js",
+  "scripts": {
+    "start": "node start.js",
+    "offline": "serverless offline --host 0.0.0.0 --httpPort 3003",
+    "deploy": "serverless deploy"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.4",
+    "redis": "^4.6.13"
+  },
+  "devDependencies": {
+    "serverless": "^3.38.0",
+    "serverless-offline": "^13.6.0"
+  }
+}

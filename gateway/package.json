@@ -1,0 +1,17 @@
+{
+  "name": "api-gateway",
+  "version": "1.0.0",
+  "description": "API Gateway central del ecosistema MediStock (proxy REST + Swagger UI)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node --check index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "http-proxy-middleware": "^3.0.0",
+    "swagger-ui-express": "^5.0.0",
+    "yamljs": "^0.3.0",
+    "express-rate-limit": "^7.2.0"
+  }
+}

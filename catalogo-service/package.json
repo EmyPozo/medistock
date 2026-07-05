@@ -1,0 +1,15 @@
+{
+  "name": "catalogo-service",
+  "version": "1.0.0",
+  "description": "Microservicio de catálogo de insumos médicos (MongoDB + Redis cache)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node --check index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "mongoose": "^8.4.0",
+    "redis": "^4.6.13"
+  }
+}

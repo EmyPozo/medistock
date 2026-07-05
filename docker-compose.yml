@@ -1,0 +1,133 @@
+version: "3.9"
+
+# ============================================================
+# MediStock - Ecosistema de gestión de insumos médicos
+# 3 aplicaciones + 3 capas de datos + cola de mensajería + API Gateway
+# ============================================================
+
+services:
+  # ---------- CAPAS DE DATOS (cada una en su propio Docker) ----------
+  mongo-catalogo:
+    image: mongo:7
+    container_name: mongo-catalogo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-pedidos:
+    image: postgres:16-alpine
+    container_name: postgres-pedidos
+    environment:
+      POSTGRES_USER: medistock
+      POSTGRES_PASSWORD: medistock123
+      POSTGRES_DB: pedidos_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medistock"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-cache:
+    image: redis:7-alpine
+    container_name: redis-cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------- GESTOR DE COLAS ----------
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # UI de administración (guest/guest)
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------- APLICACIÓN 1: Microservicio de Catálogo ----------
+  catalogo-service:
+    build: ./catalogo-service
+    container_name: catalogo-service
+    environment:
+      PORT: 3001
+      MONGO_URL: mongodb://mongo-catalogo:27017/catalogo_db
+      REDIS_URL: redis://redis-cache:6379
+    depends_on:
+      mongo-catalogo:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+
+  # ---------- APLICACIÓN 2: Microservicio de Pedidos ----------
+  pedidos-service:
+    build: ./pedidos-service
+    container_name: pedidos-service
+    environment:
+      PORT: 3002
+      DATABASE_URL: postgres://medistock:medistock123@postgres-pedidos:5432/pedidos_db
+      RABBIT_URL: amqp://rabbitmq:5672
+      CATALOGO_URL: http://catalogo-service:3001
+    depends_on:
+      postgres-pedidos:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "3002:3002"
+
+  # ---------- APLICACIÓN 3: Notificaciones (Lambdas / serverless-offline) ----------
+  notificaciones-lambda:
+    build: ./notificaciones-lambda
+    container_name: notificaciones-lambda
+    environment:
+      RABBIT_URL: amqp://rabbitmq:5672
+      REDIS_URL: redis://redis-cache:6379
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+    ports:
+      - "3003:3003"
+
+  # ---------- API GATEWAY ----------
+  api-gateway:
+    build: ./gateway
+    container_name: api-gateway
+    environment:
+      PORT: 8080
+      CATALOGO_URL: http://catalogo-service:3001
+      PEDIDOS_URL: http://pedidos-service:3002
+      NOTIFICACIONES_URL: http://notificaciones-lambda:3003
+    depends_on:
+      - catalogo-service
+      - pedidos-service
+      - notificaciones-lambda
+    ports:
+      - "8080:8080"
+
+volumes:
+  mongo_data:
+  postgres_data:
+  redis_data:

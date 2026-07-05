@@ -1,0 +1,43 @@
+# ============================================================
+# APLICACIÓN 3: Notificaciones - Server Functions (Lambdas)
+# Framework: Serverless Framework
+# Local: serverless-offline | Nube: AWS Lambda + API Gateway
+# ============================================================
+service: notificaciones-lambda
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  stage: dev
+  environment:
+    REDIS_URL: ${env:REDIS_URL, 'redis://localhost:6379'}
+    RABBIT_URL: ${env:RABBIT_URL, 'amqp://localhost:5672'}
+
+functions:
+  listarNotificaciones:
+    handler: handler.listarNotificaciones
+    events:
+      - http:
+          path: notificaciones
+          method: get
+          cors: true
+
+  obtenerNotificacion:
+    handler: handler.obtenerNotificacion
+    events:
+      - http:
+          path: notificaciones/{id}
+          method: get
+          cors: true
+
+  health:
+    handler: handler.health
+    events:
+      - http:
+          path: health
+          method: get
+
+plugins:
+  - serverless-offline

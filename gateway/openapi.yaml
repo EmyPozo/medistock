@@ -1,0 +1,174 @@
+openapi: 3.0.3
+info:
+  title: MediStock API
+  description: >
+    API centralizada del ecosistema **MediStock** — gestión de insumos médicos.
+    Expone tres aplicaciones a través de un API Gateway: Catálogo (MongoDB + Redis),
+    Pedidos (PostgreSQL + RabbitMQ) y Notificaciones (Lambdas / server functions).
+  version: 1.0.0
+  contact:
+    name: Emily Pozo
+servers:
+  - url: http://localhost:8080
+    description: API Gateway (entorno local con Docker Compose)
+
+tags:
+  - name: Productos
+    description: Catálogo de insumos médicos (catalogo-service)
+  - name: Pedidos
+    description: Gestión de pedidos (pedidos-service)
+  - name: Notificaciones
+    description: Notificaciones generadas por eventos (notificaciones-lambda)
+  - name: Sistema
+    description: Salud del ecosistema
+
+paths:
+  /health:
+    get:
+      tags: [Sistema]
+      summary: Estado agregado del ecosistema
+      responses:
+        '200':
+          description: Estado de todos los servicios
+          content:
+            application/json:
+              example:
+                gateway: UP
+                global: UP
+                servicios: { catalogo: UP, pedidos: UP, notificaciones: UP }
+
+  /api/productos:
+    get:
+      tags: [Productos]
+      summary: Listar productos (con caché Redis)
+      parameters:
+        - in: query
+          name: categoria
+          schema: { type: string }
+          description: Filtrar por categoría (proteccion, insumos, equipos)
+      responses:
+        '200':
+          description: Lista de productos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  source: { type: string, enum: [cache, db] }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Producto' }
+    post:
+      tags: [Productos]
+      summary: Crear un producto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductoInput' }
+      responses:
+        '201': { description: Producto creado }
+        '400': { description: Datos inválidos }
+
+  /api/productos/{id}:
+    get:
+      tags: [Productos]
+      summary: Obtener producto por ID
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Producto encontrado }
+        '404': { description: No existe }
+
+  /api/productos/{id}/descontar:
+    post:
+      tags: [Productos]
+      summary: Descontar stock (operación atómica, uso interno de pedidos)
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cantidad: { type: integer, example: 2 }
+      responses:
+        '200': { description: Stock actualizado }
+        '409': { description: Stock insuficiente }
+
+  /api/pedidos:
+    get:
+      tags: [Pedidos]
+      summary: Listar pedidos (paginado)
+      parameters:
+        - { in: query, name: limit, schema: { type: integer, default: 20 } }
+        - { in: query, name: offset, schema: { type: integer, default: 0 } }
+      responses:
+        '200': { description: Lista de pedidos }
+    post:
+      tags: [Pedidos]
+      summary: Crear pedido (valida catálogo, descuenta stock y publica evento a RabbitMQ)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cliente, productoId, cantidad]
+              properties:
+                cliente: { type: string, example: "Emily Pozo" }
+                productoId: { type: string, example: "665f1a..." }
+                cantidad: { type: integer, example: 3 }
+      responses:
+        '201': { description: Pedido creado y evento publicado }
+        '404': { description: Producto no existe }
+        '409': { description: Stock insuficiente }
+
+  /api/pedidos/{id}:
+    get:
+      tags: [Pedidos]
+      summary: Obtener pedido por ID
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Pedido encontrado }
+        '404': { description: No existe }
+
+  /api/notificaciones:
+    get:
+      tags: [Notificaciones]
+      summary: Listar notificaciones generadas (Lambda listarNotificaciones)
+      responses:
+        '200': { description: Últimas notificaciones }
+
+  /api/notificaciones/{id}:
+    get:
+      tags: [Notificaciones]
+      summary: Obtener notificación por ID de pedido (Lambda obtenerNotificacion)
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Notificación encontrada }
+        '404': { description: No existe }
+
+components:
+  schemas:
+    Producto:
+      type: object
+      properties:
+        _id: { type: string }
+        nombre: { type: string, example: "Guantes de nitrilo (caja x100)" }
+        categoria: { type: string, example: "proteccion" }
+        precio: { type: number, example: 8.5 }
+        stock: { type: integer, example: 200 }
+    ProductoInput:
+      type: object
+      required: [nombre, categoria, precio, stock]
+      properties:
+        nombre: { type: string }
+        categoria: { type: string }
+        descripcion: { type: string }
+        precio: { type: number }
+        stock: { type: integer }
