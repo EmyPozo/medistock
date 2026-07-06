@@ -51,6 +51,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # GHCR exige nombres en minúsculas; convertimos el owner (EmyPozo -> emypozo)
+      - name: Owner en minúsculas
+        id: owner
+        run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
       - name: Login a GHCR
         uses: docker/login-action@v3
         with:
@@ -64,8 +69,8 @@ jobs:
           context: ./${{ matrix.servicio }}
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/medistock-${{ matrix.servicio }}:latest
-            ghcr.io/${{ github.repository_owner }}/medistock-${{ matrix.servicio }}:${{ github.sha }}
+            ghcr.io/${{ steps.owner.outputs.owner }}/medistock-${{ matrix.servicio }}:latest
+            ghcr.io/${{ steps.owner.outputs.owner }}/medistock-${{ matrix.servicio }}:${{ github.sha }}
 
   cd-lambdas:
     name: Desplegar Lambdas (Serverless)
