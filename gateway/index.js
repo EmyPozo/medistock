@@ -61,18 +61,28 @@ app.get('/health', async (_req, res) => {
 });
 
 // ---------- Proxies hacia cada aplicación ----------
+// NOTA: en http-proxy-middleware v3 se usa pathFilter (sin montar en app.use('/ruta'))
+// para que pathRewrite reciba la URL completa y reescriba correctamente.
 app.use(
-  '/api/productos',
-  createProxyMiddleware({ target: CATALOGO_URL, changeOrigin: true, pathRewrite: { '^/api/productos': '/productos' } })
+  createProxyMiddleware({
+    pathFilter: '/api/productos',
+    target: CATALOGO_URL,
+    changeOrigin: true,
+    pathRewrite: { '^/api/productos': '/productos' },
+  })
 );
 app.use(
-  '/api/pedidos',
-  createProxyMiddleware({ target: PEDIDOS_URL, changeOrigin: true, pathRewrite: { '^/api/pedidos': '/pedidos' } })
+  createProxyMiddleware({
+    pathFilter: '/api/pedidos',
+    target: PEDIDOS_URL,
+    changeOrigin: true,
+    pathRewrite: { '^/api/pedidos': '/pedidos' },
+  })
 );
 // serverless-offline publica las rutas bajo el stage /dev
 app.use(
-  '/api/notificaciones',
   createProxyMiddleware({
+    pathFilter: '/api/notificaciones',
     target: NOTIFICACIONES_URL,
     changeOrigin: true,
     pathRewrite: { '^/api/notificaciones': '/dev/notificaciones' },
