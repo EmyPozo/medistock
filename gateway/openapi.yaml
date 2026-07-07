@@ -5,7 +5,7 @@ info:
     API centralizada del ecosistema **MediStock** — gestión de insumos médicos.
     Expone tres aplicaciones a través de un API Gateway: Catálogo (MongoDB + Redis),
     Pedidos (PostgreSQL + RabbitMQ) y Notificaciones (Lambdas / server functions).
-  version: 1.0.0
+  version: 1.1.0
   contact:
     name: Emily Pozo
 servers:
@@ -136,10 +136,43 @@ paths:
         '200': { description: Pedido encontrado }
         '404': { description: No existe }
 
+  /api/pedidos/{id}/estado:
+    patch:
+      tags: [Pedidos]
+      summary: Cambiar estado del pedido (patrón State — transiciones validadas)
+      description: >
+        El ciclo de vida del pedido se gestiona con el patrón State:
+        CREADO → confirmar → CONFIRMADO → enviar → ENVIADO → entregar → ENTREGADO.
+        Los pedidos CREADO y CONFIRMADO admiten cancelar. Una acción no permitida
+        por el estado actual responde 409. Cada transición publica el evento
+        pedido.estado_cambiado a RabbitMQ (patrón Observer).
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [accion]
+              properties:
+                accion:
+                  type: string
+                  enum: [confirmar, enviar, entregar, cancelar]
+                  example: confirmar
+      responses:
+        '200': { description: Transición realizada (devuelve el pedido y la transición aplicada) }
+        '400': { description: Acción inválida }
+        '404': { description: Pedido no encontrado }
+        '409': { description: Acción no permitida en el estado actual }
+
   /api/notificaciones:
     get:
       tags: [Notificaciones]
       summary: Listar notificaciones generadas (Lambda listarNotificaciones)
+      description: >
+        Las notificaciones se generan aplicando el patrón Strategy: pedidos de
+        $50 o más se notifican por canal "sms" y el resto por canal "email".
       responses:
         '200': { description: Últimas notificaciones }
 
