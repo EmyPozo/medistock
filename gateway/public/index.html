@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediStock — Panel de operaciones</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0B3C43; --teal:#0E7C7B; --teal-soft:#DCEeed; --teal-mist:#EEF5F4;
+    --coral:#E85D4C; --coral-soft:#FBEAE7; --amber:#B87A00; --amber-soft:#FFF3DC;
+    --verde:#2E7D32; --verde-soft:#E4F1E5; --gris:#5C6B6D; --linea:#D8E4E2;
+    --card:#FFFFFF; --radio:14px;
+    --sombra:0 1px 2px rgba(11,60,67,.06),0 8px 24px -12px rgba(11,60,67,.18);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',sans-serif;background:var(--teal-mist);color:var(--ink);min-height:100vh}
+  h1,h2{font-family:'Bricolage Grotesque',sans-serif}
+  .mono{font-family:'JetBrains Mono',monospace}
+
+  /* ---------- Header con pulso ---------- */
+  header{background:var(--ink);color:#fff;padding:0 clamp(16px,4vw,40px)}
+  .head-top{display:flex;align-items:center;gap:18px;padding:18px 0 6px;flex-wrap:wrap}
+  .brand{display:flex;align-items:baseline;gap:10px}
+  .brand h1{font-size:clamp(22px,3vw,30px);font-weight:700;letter-spacing:-.02em}
+  .brand span{font-size:12px;color:#8FBDB9;letter-spacing:.14em;text-transform:uppercase}
+  .health{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .pill{display:flex;align-items:center;gap:6px;font-size:12px;padding:5px 11px;border-radius:99px;background:rgba(255,255,255,.08);color:#BFE3E0}
+  .dot{width:7px;height:7px;border-radius:50%;background:#5C6B6D}
+  .dot.up{background:#4ED9A0}.dot.down{background:var(--coral)}
+  .ekg-wrap{height:44px;overflow:hidden;opacity:.9}
+  .ekg{width:100%;height:44px}
+  .ekg path{fill:none;stroke:#4ED9A0;stroke-width:2;stroke-linecap:round;
+    stroke-dasharray:1200;stroke-dashoffset:1200;animation:latir 4s linear infinite}
+  .ekg.evento path{stroke:var(--coral);animation-duration:1.6s}
+  @keyframes latir{to{stroke-dashoffset:0}}
+  @media (prefers-reduced-motion:reduce){.ekg path{animation:none;stroke-dashoffset:0}}
+
+  /* ---------- Layout ---------- */
+  main{max-width:1280px;margin:0 auto;padding:26px clamp(16px,4vw,40px) 60px;
+    display:grid;gap:22px;grid-template-columns:1.1fr 1.2fr .9fr}
+  @media(max-width:1020px){main{grid-template-columns:1fr 1fr}}
+  @media(max-width:700px){main{grid-template-columns:1fr}}
+  section{background:var(--card);border-radius:var(--radio);box-shadow:var(--sombra);
+    padding:20px;display:flex;flex-direction:column;gap:14px;min-height:200px}
+  .sec-head{display:flex;align-items:center;gap:10px}
+  .sec-head h2{font-size:19px;font-weight:600}
+  .badge{font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;letter-spacing:.02em}
+  .badge.cache{background:var(--verde-soft);color:var(--verde)}
+  .badge.db{background:var(--teal-soft);color:var(--teal)}
+  .sub{font-size:12.5px;color:var(--gris)}
+
+  /* ---------- Catálogo ---------- */
+  .producto{display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--linea);
+    border-radius:10px;transition:border-color .15s}
+  .producto:hover{border-color:var(--teal)}
+  .p-info{flex:1;min-width:0}
+  .p-info b{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .p-info small{color:var(--gris);font-size:11.5px;text-transform:capitalize}
+  .p-precio{font-family:'JetBrains Mono';font-size:14px;font-weight:600;color:var(--teal)}
+  .p-stock{font-size:11.5px;text-align:right;color:var(--gris)}
+  .p-stock b{font-family:'JetBrains Mono';font-size:14px;color:var(--ink)}
+  .p-stock.bajo b{color:var(--coral)}
+
+  /* ---------- Formulario ---------- */
+  form{display:grid;gap:10px;background:var(--teal-mist);border-radius:10px;padding:14px}
+  label{font-size:12px;font-weight:600;color:var(--gris);display:grid;gap:5px}
+  input,select{font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--linea);
+    border-radius:8px;background:#fff;color:var(--ink);width:100%}
+  input:focus,select:focus{outline:2px solid var(--teal);outline-offset:1px;border-color:var(--teal)}
+  .fila{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+  button{font:inherit;font-weight:600;border:none;border-radius:8px;cursor:pointer;transition:transform .1s,opacity .15s}
+  button:hover{opacity:.92}button:active{transform:scale(.98)}
+  button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .btn-crear{background:var(--teal);color:#fff;padding:11px;font-size:14.5px}
+  .total-prev{font-size:12.5px;color:var(--gris)}
+  .total-prev b{font-family:'JetBrains Mono';color:var(--ink)}
+
+  /* ---------- Pedidos y patrón State ---------- */
+  .pedido{border:1px solid var(--linea);border-radius:10px;padding:12px;display:grid;gap:8px}
+  .ped-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .ped-id{font-family:'JetBrains Mono';font-size:12px;color:var(--gris)}
+  .ped-top b{font-size:13.5px}
+  .estado{font-size:10.5px;font-weight:600;letter-spacing:.06em;padding:3px 9px;border-radius:99px;margin-left:auto}
+  .E-CREADO{background:var(--teal-soft);color:var(--teal)}
+  .E-CONFIRMADO{background:#D5E8F7;color:#1D5B8C}
+  .E-ENVIADO{background:var(--amber-soft);color:var(--amber)}
+  .E-ENTREGADO{background:var(--verde-soft);color:var(--verde)}
+  .E-CANCELADO{background:#EBEBEB;color:#777}
+  .ped-det{font-size:12.5px;color:var(--gris)}
+  .ped-det .mono{color:var(--ink)}
+  .acciones{display:flex;gap:7px;flex-wrap:wrap}
+  .acciones button{font-size:12px;padding:6px 12px;background:#fff;border:1.5px solid var(--teal);color:var(--teal)}
+  .acciones button.peligro{border-color:var(--coral);color:var(--coral)}
+  .fin{font-size:11.5px;color:var(--gris);font-style:italic}
+
+  /* ---------- Notificaciones (Strategy) ---------- */
+  .notif{border-left:3px solid var(--teal);background:var(--teal-mist);border-radius:0 10px 10px 0;
+    padding:10px 12px;display:grid;gap:5px;animation:entrar .35s ease}
+  .notif.sms{border-color:var(--coral);background:var(--coral-soft)}
+  @keyframes entrar{from{opacity:0;transform:translateY(-6px)}to{opacity:1}}
+  @media (prefers-reduced-motion:reduce){.notif{animation:none}}
+  .n-top{display:flex;align-items:center;gap:8px}
+  .canal{font-size:10px;font-weight:700;letter-spacing:.1em;padding:2px 8px;border-radius:99px}
+  .canal.email{background:var(--teal);color:#fff}
+  .canal.sms{background:var(--coral);color:#fff}
+  .n-top time{margin-left:auto;font-size:11px;color:var(--gris)}
+  .notif p{font-size:12.5px;line-height:1.5}
+
+  .vacio{border:1.5px dashed var(--linea);border-radius:10px;padding:22px;text-align:center;
+    font-size:13px;color:var(--gris)}
+  .lista{display:grid;gap:9px;overflow-y:auto;max-height:520px;padding-right:2px}
+
+  /* ---------- Toast ---------- */
+  #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);
+    background:var(--ink);color:#fff;font-size:13.5px;padding:12px 20px;border-radius:10px;
+    box-shadow:var(--sombra);opacity:0;transition:.25s;max-width:90vw;z-index:50}
+  #toast.ver{opacity:1;transform:translateX(-50%) translateY(0)}
+  #toast.error{background:var(--coral)}
+
+  footer{max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,40px) 30px;
+    font-size:11.5px;color:var(--gris)}
+  footer .mono{font-size:11px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="head-top">
+    <div class="brand">
+      <h1>MediStock</h1>
+      <span>Panel de operaciones</span>
+    </div>
+    <div class="health" id="health" aria-live="polite">
+      <span class="pill"><span class="dot" id="d-catalogo"></span>catálogo</span>
+      <span class="pill"><span class="dot" id="d-pedidos"></span>pedidos</span>
+      <span class="pill"><span class="dot" id="d-notificaciones"></span>notificaciones</span>
+    </div>
+  </div>
+  <div class="ekg-wrap" title="Pulso del sistema: late en coral cuando llega una notificación">
+    <svg class="ekg" id="ekg" viewBox="0 0 1200 44" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0,22 H80 L95,22 105,8 115,36 125,22 H260 L275,22 285,10 295,34 305,22 H440 L455,22 465,6 475,38 485,22 H620 L635,22 645,9 655,35 665,22 H800 L815,22 825,7 835,37 845,22 H980 L995,22 1005,10 1015,34 1025,22 H1200"/>
+    </svg>
+  </div>
+</header>
+
+<main>
+  <!-- ============ CATÁLOGO ============ -->
+  <section aria-labelledby="t-cat">
+    <div class="sec-head">
+      <h2 id="t-cat">Catálogo</h2>
+      <span class="badge db" id="badge-fuente" title="Patrón Cache-Aside: primera lectura desde MongoDB, siguientes desde Redis">—</span>
+    </div>
+    <p class="sub">Insumos disponibles y su stock en tiempo real. El indicador muestra si la lectura vino de la base o de la caché Redis.</p>
+    <div class="lista" id="productos"><div class="vacio">Cargando catálogo…</div></div>
+  </section>
+
+  <!-- ============ PEDIDOS ============ -->
+  <section aria-labelledby="t-ped">
+    <div class="sec-head"><h2 id="t-ped">Pedidos</h2></div>
+
+    <form id="form-pedido">
+      <label>Cliente
+        <input type="text" id="f-cliente" placeholder="Nombre del cliente" required maxlength="120">
+      </label>
+      <div class="fila">
+        <label>Producto
+          <select id="f-producto" required></select>
+        </label>
+        <label>Cantidad
+          <input type="number" id="f-cantidad" min="1" value="1" required>
+        </label>
+      </div>
+      <p class="total-prev">Total estimado: <b id="f-total">$0.00</b></p>
+      <button type="submit" class="btn-crear">Crear pedido</button>
+    </form>
+
+    <div class="lista" id="pedidos"><div class="vacio">Aún no hay pedidos. Crea el primero con el formulario.</div></div>
+  </section>
+
+  <!-- ============ NOTIFICACIONES ============ -->
+  <section aria-labelledby="t-not">
+    <div class="sec-head"><h2 id="t-not">Notificaciones</h2></div>
+    <p class="sub">Generadas por las Lambdas al consumir la cola. El canal lo decide el patrón Strategy: pedidos de $50 o más salen por SMS.</p>
+    <div class="lista" id="notificaciones"><div class="vacio">Sin notificaciones todavía. Llegarán solas al crear un pedido.</div></div>
+  </section>
+</main>
+
+<footer>
+  Ecosistema MediStock · microservicios + serverless · las peticiones de este panel viajan por el API Gateway
+  <span class="mono">(:8080 → catálogo :3001 · pedidos :3002 · lambdas :3003 · RabbitMQ :5672)</span>
+</footer>
+
+<div id="toast" role="status"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let productos = [];
+let notifConocidas = new Set();
+
+// Espejo de la máquina de estados del backend (patrón State)
+const TRANSICIONES = {
+  CREADO: ['confirmar', 'cancelar'],
+  CONFIRMADO: ['enviar', 'cancelar'],
+  ENVIADO: ['entregar'],
+  ENTREGADO: [],
+  CANCELADO: [],
+};
+const ETIQUETA = { confirmar: 'Confirmar', enviar: 'Marcar enviado', entregar: 'Marcar entregado', cancelar: 'Cancelar' };
+
+function toast(msg, esError = false) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'ver' + (esError ? ' error' : '');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => (t.className = ''), 3200);
+}
+
+async function api(ruta, opciones) {
+  const r = await fetch(ruta, opciones);
+  const cuerpo = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(cuerpo.error || 'Error ' + r.status), { status: r.status });
+  return cuerpo;
+}
+
+// ---------- Salud ----------
+async function cargarSalud() {
+  try {
+    const h = await api('/health');
+    for (const [srv, estado] of Object.entries(h.servicios || {})) {
+      const d = $('d-' + srv);
+      if (d) d.className = 'dot ' + (estado === 'UP' ? 'up' : 'down');
+    }
+  } catch { ['catalogo','pedidos','notificaciones'].forEach(s => { const d = $('d-'+s); if (d) d.className = 'dot down'; }); }
+}
+
+// ---------- Catálogo ----------
+async function cargarProductos() {
+  try {
+    const res = await api('/api/productos');
+    productos = res.data || [];
+    const badge = $('badge-fuente');
+    badge.textContent = res.source === 'cache' ? 'desde caché ⚡' : 'desde MongoDB';
+    badge.className = 'badge ' + (res.source === 'cache' ? 'cache' : 'db');
+
+    $('productos').innerHTML = productos.map(p => `
+      <div class="producto">
+        <div class="p-info"><b>${p.nombre}</b><small>${p.categoria}</small></div>
+        <span class="p-precio">$${Number(p.precio).toFixed(2)}</span>
+        <div class="p-stock ${p.stock < 20 ? 'bajo' : ''}"><b>${p.stock}</b><br>en stock</div>
+      </div>`).join('') || '<div class="vacio">El catálogo está vacío.</div>';
+
+    const sel = $('f-producto');
+    const previo = sel.value;
+    sel.innerHTML = productos.map(p =>
+      `<option value="${p._id}" data-precio="${p.precio}">${p.nombre} — $${Number(p.precio).toFixed(2)}</option>`).join('');
+    if (previo) sel.value = previo;
+    calcularTotal();
+  } catch (e) { $('productos').innerHTML = `<div class="vacio">No se pudo cargar el catálogo: ${e.message}</div>`; }
+}
+
+function calcularTotal() {
+  const opt = $('f-producto').selectedOptions[0];
+  const precio = opt ? Number(opt.dataset.precio) : 0;
+  const cant = Number($('f-cantidad').value) || 0;
+  $('f-total').textContent = '$' + (precio * cant).toFixed(2);
+}
+$('f-producto').addEventListener('change', calcularTotal);
+$('f-cantidad').addEventListener('input', calcularTotal);
+
+// ---------- Crear pedido ----------
+$('form-pedido').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const body = {
+    cliente: $('f-cliente').value.trim(),
+    productoId: $('f-producto').value,
+    cantidad: Number($('f-cantidad').value),
+  };
+  try {
+    const res = await api('/api/pedidos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    toast(`Pedido #${res.data.id} creado — el evento ya viaja por la cola`);
+    ev.target.reset(); $('f-cantidad').value = 1;
+    cargarPedidos(); cargarProductos();
+  } catch (e) {
+    toast(e.status === 409 ? 'Stock insuficiente para esa cantidad' : 'No se pudo crear el pedido: ' + e.message, true);
+  }
+});
+
+// ---------- Pedidos + transiciones (State) ----------
+async function cargarPedidos() {
+  try {
+    const res = await api('/api/pedidos?limit=12');
+    const pedidos = res.data || [];
+    $('pedidos').innerHTML = pedidos.map(p => {
+      const acciones = TRANSICIONES[p.estado] || [];
+      const botones = acciones.map(a =>
+        `<button data-id="${p.id}" data-accion="${a}" class="${a === 'cancelar' ? 'peligro' : ''}">${ETIQUETA[a]}</button>`).join('');
+      return `
+      <div class="pedido">
+        <div class="ped-top">
+          <span class="ped-id">#${p.id}</span><b>${p.cliente}</b>
+          <span class="estado E-${p.estado}">${p.estado}</span>
+        </div>
+        <div class="ped-det">${p.cantidad} × ${p.producto_nombre || 'producto'} · total <span class="mono">$${p.total}</span></div>
+        ${acciones.length ? `<div class="acciones">${botones}</div>` : `<div class="fin">Estado final — sin transiciones disponibles</div>`}
+      </div>`;
+    }).join('') || '<div class="vacio">Aún no hay pedidos. Crea el primero con el formulario.</div>';
+  } catch (e) { $('pedidos').innerHTML = `<div class="vacio">No se pudieron cargar los pedidos: ${e.message}</div>`; }
+}
+
+$('pedidos').addEventListener('click', async (ev) => {
+  const btn = ev.target.closest('button[data-accion]');
+  if (!btn) return;
+  try {
+    const res = await api(`/api/pedidos/${btn.dataset.id}/estado`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accion: btn.dataset.accion }),
+    });
+    toast(`Pedido #${btn.dataset.id}: ${res.transicion}`);
+    cargarPedidos();
+  } catch (e) {
+    toast(e.status === 409 ? 'Transición no permitida en el estado actual (409)' : e.message, true);
+  }
+});
+
+// ---------- Notificaciones (Strategy) ----------
+let primeraCargaNotif = true;
+async function cargarNotificaciones() {
+  try {
+    const res = await api('/api/notificaciones');
+    const lista = res.data || [];
+    let hayNueva = false;
+    lista.forEach(n => { if (!notifConocidas.has(n.id)) { notifConocidas.add(n.id); hayNueva = true; } });
+
+    $('notificaciones').innerHTML = lista.map(n => `
+      <article class="notif ${n.canal}">
+        <div class="n-top">
+          <span class="canal ${n.canal}">${(n.canal || '').toUpperCase()}</span>
+          <time>${new Date(n.enviadoEn).toLocaleTimeString('es-EC')}</time>
+        </div>
+        <p>${n.mensaje}</p>
+      </article>`).join('') || '<div class="vacio">Sin notificaciones todavía. Llegarán solas al crear un pedido.</div>';
+
+    if (hayNueva && !primeraCargaNotif) latir();
+    primeraCargaNotif = false;
+  } catch (e) { $('notificaciones').innerHTML = `<div class="vacio">No se pudieron cargar: ${e.message}</div>`; }
+}
+
+// Pulso coral al llegar eventos
+let latirTimer;
+function latir() {
+  const ekg = $('ekg');
+  ekg.classList.add('evento');
+  clearTimeout(latirTimer);
+  latirTimer = setTimeout(() => ekg.classList.remove('evento'), 4000);
+}
+
+// ---------- Ciclo de vida ----------
+cargarSalud(); cargarProductos(); cargarPedidos(); cargarNotificaciones();
+setInterval(cargarNotificaciones, 5000);
+setInterval(cargarSalud, 15000);
+setInterval(cargarPedidos, 12000);
+</script>
+</body>
+</html>

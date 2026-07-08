@@ -2,9 +2,10 @@
 // API GATEWAY — Punto único de entrada del ecosistema MediStock
 // Patrones: API Gateway, Proxy, Rate Limiting (Throttling)
 // Expone: /api/productos, /api/pedidos, /api/notificaciones
-// Documentación: /docs (Swagger UI con openapi.yaml)
+// Documentación: /docs (Swagger UI) · Cliente web: / (dashboard)
 // ============================================================
 const express = require('express');
+const path = require('path');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
@@ -21,7 +22,7 @@ const app = express();
 app.use(
   rateLimit({
     windowMs: 60 * 1000,
-    max: 100, // 100 req/min por IP
+    max: 300, // ampliado: el dashboard hace polling de notificaciones y salud
     standardHeaders: true,
     message: { error: 'Demasiadas solicitudes, intente más tarde' },
   })
@@ -33,10 +34,13 @@ app.use((req, _res, next) => {
   next();
 });
 
+// ---------- Cliente web (dashboard) ----------
+app.use(express.static(path.join(__dirname, 'public')));
+
 // ---------- Documentación Swagger ----------
 const openapi = YAML.load('./openapi.yaml');
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapi));
-app.get('/openapi.yaml', (_req, res) => res.sendFile(__dirname + '/openapi.yaml'));
+app.get('/openapi.yaml', (_req, res) => res.sendFile(path.join(__dirname, 'openapi.yaml')));
 
 // ---------- Health agregado del ecosistema ----------
 app.get('/health', async (_req, res) => {
@@ -61,8 +65,7 @@ app.get('/health', async (_req, res) => {
 });
 
 // ---------- Proxies hacia cada aplicación ----------
-// NOTA: en http-proxy-middleware v3 se usa pathFilter (sin montar en app.use('/ruta'))
-// para que pathRewrite reciba la URL completa y reescriba correctamente.
+// http-proxy-middleware v3: pathFilter para reescritura correcta de rutas
 app.use(
   createProxyMiddleware({
     pathFilter: '/api/productos',
@@ -89,12 +92,14 @@ app.use(
   })
 );
 
-app.get('/', (_req, res) =>
+// ---------- Info de la API (la raíz ahora la ocupa el dashboard) ----------
+app.get('/info', (_req, res) =>
   res.json({
     nombre: 'MediStock API Gateway',
+    cliente_web: '/',
     documentacion: '/docs',
     endpoints: ['/api/productos', '/api/pedidos', '/api/notificaciones', '/health'],
   })
 );
 
-app.listen(PORT, () => console.log(`[gateway] Escuchando en puerto ${PORT} — docs en /docs`));
+app.listen(PORT, () => console.log(`[gateway] Escuchando en puerto ${PORT} — dashboard en / · docs en /docs`));
